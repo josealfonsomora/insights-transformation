@@ -1,109 +1,157 @@
-import React, { useState } from "react";
-import "./App.css";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Insight Bucket Visualizer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+    }
+    .bucket-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .dial-bar {
+      position: relative;
+      display: flex;
+      height: 30px;
+      margin-top: 2rem;
+      background: lightgray;
+    }
+    .dial-bar > div {
+      flex: 1;
+    }
+    .dangerous {
+      background-color: red;
+    }
+    .average {
+      background-color: yellow;
+    }
+    .good {
+      background-color: green;
+    }
+    .dial-indicator {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+  <h1>Insight Bucket Visualizer</h1>
+  <div>
+    <label>Score: <span id="scoreDisplay">50</span></label>
+    <input id="scoreSlider" type="range" min="0" max="100" value="50" />
+  </div>
 
-const mapScoreToDial = (score, buckets) => {
-  const normalized = score / 100;
-  const bucket = buckets.find(b => normalized >= b.low && normalized < b.high) || buckets[buckets.length - 1];
+  <div>
+    <h2>Bucket Thresholds</h2>
+    <div id="bucketsContainer"></div>
+  </div>
 
-  let dialMin, dialMax;
-  switch (bucket.type) {
-    case "dangerous":
-      dialMin = 0;
-      dialMax = 33;
-      break;
-    case "average":
-      dialMin = 34;
-      dialMax = 66;
-      break;
-    case "good":
-      dialMin = 67;
-      dialMax = 100;
-      break;
-    default:
-      return 0;
-  }
+  <div class="dial-bar">
+    <div class="dangerous"></div>
+    <div class="average"></div>
+    <div class="good"></div>
+    <div class="dial-indicator" id="dialIndicator"></div>
+  </div>
+  <p class="dial-score">Mapped Dial Score: <span id="dialScoreDisplay"></span></p>
 
-  const bucketRange = bucket.high - bucket.low;
-  const scoreRelative = (normalized - bucket.low) / bucketRange;
-  return Math.round(dialMin + scoreRelative * (dialMax - dialMin));
-};
+  <script>
+    let buckets = [
+      { low: 0.0, high: 0.846509, type: "dangerous" },
+      { low: 0.846509, high: 0.945721, type: "average" },
+      { low: 0.945721, high: 1.0, type: "good" },
+    ];
 
-function App() {
-  const [score, setScore] = useState(50);
-  const [buckets, setBuckets] = useState([
-    { low: 0.0, high: 0.846509, type: "dangerous" },
-    { low: 0.846509, high: 0.945721, type: "average" },
-    { low: 0.945721, high: 1.0, type: "good" },
-  ]);
+    const bucketsContainer = document.getElementById("bucketsContainer");
+    const scoreSlider = document.getElementById("scoreSlider");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const dialIndicator = document.getElementById("dialIndicator");
+    const dialScoreDisplay = document.getElementById("dialScoreDisplay");
 
-  const dialScore = mapScoreToDial(score, buckets);
+    function createBucketRow(bucket, index) {
+      const row = document.createElement("div");
+      row.className = "bucket-row";
 
-  return (
-    <div className="container">
-      <h1>Insight Bucket Visualizer</h1>
-      <div>
-        <label>Score: {score}</label>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={score}
-          onChange={(e) => setScore(parseInt(e.target.value))}
-        />
-      </div>
+      const lowInput = document.createElement("input");
+      lowInput.type = "number";
+      lowInput.step = "0.0001";
+      lowInput.value = bucket.low;
+      lowInput.onchange = (e) => {
+        buckets[index].low = parseFloat(e.target.value);
+        update();
+      };
 
-      <div>
-        <h2>Bucket Thresholds</h2>
-        {buckets.map((bucket, i) => (
-          <div key={i} className="bucket-row">
-            <input
-              type="number"
-              step="0.0001"
-              value={bucket.low}
-              onChange={(e) => {
-                const newBuckets = [...buckets];
-                newBuckets[i].low = parseFloat(e.target.value);
-                setBuckets(newBuckets);
-              }}
-            />
-            <input
-              type="number"
-              step="0.0001"
-              value={bucket.high}
-              onChange={(e) => {
-                const newBuckets = [...buckets];
-                newBuckets[i].high = parseFloat(e.target.value);
-                setBuckets(newBuckets);
-              }}
-            />
-            <select
-              value={bucket.type}
-              onChange={(e) => {
-                const newBuckets = [...buckets];
-                newBuckets[i].type = e.target.value;
-                setBuckets(newBuckets);
-              }}
-            >
-              <option value="dangerous">Dangerous</option>
-              <option value="average">Average</option>
-              <option value="good">Good</option>
-            </select>
-          </div>
-        ))}
-      </div>
+      const highInput = document.createElement("input");
+      highInput.type = "number";
+      highInput.step = "0.0001";
+      highInput.value = bucket.high;
+      highInput.onchange = (e) => {
+        buckets[index].high = parseFloat(e.target.value);
+        update();
+      };
 
-      <div className="dial-bar">
-        <div className="dangerous" />
-        <div className="average" />
-        <div className="good" />
-        <div
-          className="dial-indicator"
-          style={{ left: `${(dialScore / 100) * 100}%` }}
-        />
-      </div>
-      <p className="dial-score">Mapped Dial Score: {dialScore}</p>
-    </div>
-  );
-}
+      const typeSelect = document.createElement("select");
+      ["dangerous", "average", "good"].forEach((type) => {
+        const opt = document.createElement("option");
+        opt.value = type;
+        opt.text = type;
+        if (bucket.type === type) opt.selected = true;
+        typeSelect.appendChild(opt);
+      });
+      typeSelect.onchange = (e) => {
+        buckets[index].type = e.target.value;
+        update();
+      };
 
-export default App;
+      row.appendChild(lowInput);
+      row.appendChild(highInput);
+      row.appendChild(typeSelect);
+      return row;
+    }
+
+    function mapScoreToDial(score, buckets) {
+      const normalized = score / 100;
+      const bucket = buckets.find(b => normalized >= b.low && normalized < b.high) || buckets[buckets.length - 1];
+
+      let dialMin, dialMax;
+      switch (bucket.type) {
+        case "dangerous": dialMin = 0; dialMax = 33; break;
+        case "average": dialMin = 34; dialMax = 66; break;
+        case "good": dialMin = 67; dialMax = 100; break;
+        default: return 0;
+      }
+
+      const bucketRange = bucket.high - bucket.low;
+      const scoreRelative = (normalized - bucket.low) / bucketRange;
+      return Math.round(dialMin + scoreRelative * (dialMax - dialMin));
+    }
+
+    function update() {
+      const score = parseInt(scoreSlider.value);
+      const dialScore = mapScoreToDial(score, buckets);
+
+      scoreDisplay.textContent = score;
+      dialScoreDisplay.textContent = dialScore;
+      dialIndicator.style.left = `${(dialScore / 100) * 100}%`;
+    }
+
+    bucketsContainer.innerHTML = "";
+    buckets.forEach((bucket, i) => {
+      bucketsContainer.appendChild(createBucketRow(bucket, i));
+    });
+
+    scoreSlider.oninput = update;
+    update();
+  </script>
+</body>
+</html>
+
