@@ -1,0 +1,104 @@
+import React, { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+
+const mapScoreToDial = (score, buckets) => {
+  const normalized = score / 100;
+  const bucket = buckets.find(b => normalized >= b.low && normalized < b.high) || buckets[buckets.length - 1];
+
+  let dialMin, dialMax;
+  switch (bucket.type) {
+    case "dangerous":
+      dialMin = 0;
+      dialMax = 33;
+      break;
+    case "average":
+      dialMin = 34;
+      dialMax = 66;
+      break;
+    case "good":
+      dialMin = 67;
+      dialMax = 100;
+      break;
+    default:
+      return 0;
+  }
+
+  const bucketRange = bucket.high - bucket.low;
+  const scoreRelative = (normalized - bucket.low) / bucketRange;
+  return Math.round(dialMin + scoreRelative * (dialMax - dialMin));
+};
+
+export default function BucketVisualizer() {
+  const [score, setScore] = useState(50);
+  const [buckets, setBuckets] = useState([
+    { low: 0.0, high: 0.846509, type: "dangerous" },
+    { low: 0.846509, high: 0.945721, type: "average" },
+    { low: 0.945721, high: 1.0, type: "good" },
+  ]);
+
+  const dialScore = mapScoreToDial(score, buckets);
+
+  return (
+    <div className="max-w-xl mx-auto p-4 space-y-6">
+      <h1 className="text-2xl font-bold">Insight Bucket Visualizer</h1>
+      <div>
+        <label>Score: {score}</label>
+        <Slider min={0} max={100} value={[score]} onValueChange={([v]) => setScore(v)} />
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Bucket Thresholds</h2>
+        {buckets.map((bucket, i) => (
+          <div key={i} className="flex gap-2">
+            <Input
+              type="number"
+              step="0.0001"
+              value={bucket.low}
+              onChange={(e) => {
+                const newBuckets = [...buckets];
+                newBuckets[i].low = parseFloat(e.target.value);
+                setBuckets(newBuckets);
+              }}
+            />
+            <Input
+              type="number"
+              step="0.0001"
+              value={bucket.high}
+              onChange={(e) => {
+                const newBuckets = [...buckets];
+                newBuckets[i].high = parseFloat(e.target.value);
+                setBuckets(newBuckets);
+              }}
+            />
+            <select
+              value={bucket.type}
+              onChange={(e) => {
+                const newBuckets = [...buckets];
+                newBuckets[i].type = e.target.value;
+                setBuckets(newBuckets);
+              }}
+            >
+              <option value="dangerous">Dangerous</option>
+              <option value="average">Average</option>
+              <option value="good">Good</option>
+            </select>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative w-full h-8 bg-gray-200 rounded overflow-hidden">
+        <div className="absolute top-0 left-0 h-full w-1/3 bg-red-500" />
+        <div className="absolute top-0 left-1/3 h-full w-1/3 bg-yellow-500" />
+        <div className="absolute top-0 left-2/3 h-full w-1/3 bg-green-500" />
+        <div
+          className="absolute top-0 h-full border-l-4 border-black"
+          style={{ left: `${(dialScore / 100) * 100}%` }}
+        />
+      </div>
+      <p className="text-center">Mapped Dial Score: {dialScore}</p>
+    </div>
+  );
+}
+
